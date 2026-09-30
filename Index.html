@@ -1,0 +1,576 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Winter Arc 90 — Verified Discipline Portal</title>
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            arcDark: '#0b0f17',
+            arcCard: '#151c28',
+            arcAccent: '#3b82f6',
+            arcSuccess: '#10b981',
+            arcDanger: '#ef4444'
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    /* Custom scrollbar & visual tweaks */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #0b0f17; }
+    ::-webkit-scrollbar-thumb { background: #1f2937; border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: #3b82f6; }
+  </style>
+</head>
+<body class="bg-arcDark text-gray-100 min-h-screen font-sans pb-12 antialiased">
+
+  <!-- TOP HEADER & NAV -->
+  <header class="border-b border-gray-800 bg-arcCard sticky top-0 z-40 shadow-lg">
+    <div class="max-w-7xl mx-auto px-4 py-3 flex flex-wrap justify-between items-center gap-4">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center font-black text-xl text-white shadow-md shadow-blue-500/20">
+          WA
+        </div>
+        <div>
+          <h1 class="text-xl font-black tracking-wider text-blue-500 uppercase leading-none">Winter Arc 90</h1>
+          <p class="text-[11px] text-gray-400 mt-0.5">Real-Time Verified Discipline Portal</p>
+        </div>
+      </div>
+
+      <!-- Auth Bar -->
+      <div id="authSection" class="flex items-center gap-3">
+        <div id="userBadge" class="hidden flex items-center gap-2 bg-gray-900 border border-gray-800 px-3 py-1.5 rounded-full">
+          <div id="userAvatar" class="w-5 h-5 rounded-full bg-blue-500 text-[10px] font-bold flex items-center justify-center text-white uppercase">U</div>
+          <span id="userStatus" class="text-xs font-semibold text-gray-300">Logged In</span>
+        </div>
+        <button id="loginBtn" onclick="toggleAuthModal()" class="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-xs font-bold text-white rounded-lg transition shadow-md shadow-blue-600/30">
+          Sign In
+        </button>
+        <button id="logoutBtn" onclick="handleLogout()" class="hidden px-3 py-1.5 bg-gray-800 hover:bg-gray-700 text-xs font-bold text-gray-300 rounded-lg transition">
+          Logout
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- NAVIGATION TABS -->
+  <nav class="max-w-7xl mx-auto px-4 mt-6">
+    <div class="flex border-b border-gray-800 space-x-2 md:space-x-6 text-xs md:text-sm font-bold overflow-x-auto">
+      <button onclick="switchTab('tracker')" id="tab-tracker" class="py-3 px-2 border-b-2 border-blue-500 text-blue-500 whitespace-nowrap transition">My Tracker</button>
+      <button onclick="switchTab('audit')" id="tab-audit" class="py-3 px-2 border-b-2 border-transparent text-gray-400 hover:text-gray-200 whitespace-nowrap transition">Public Audit Feed</button>
+      <button onclick="switchTab('leaderboard')" id="tab-leaderboard" class="py-3 px-2 border-b-2 border-transparent text-gray-400 hover:text-gray-200 whitespace-nowrap transition">Scoreboard</button>
+      <button id="adminTabBtn" onclick="switchTab('admin')" class="hidden py-3 px-2 border-b-2 border-transparent text-amber-500 hover:text-amber-400 whitespace-nowrap transition flex items-center gap-1.5">
+        <span>Admin Review</span>
+        <span id="pendingCount" class="bg-amber-500/20 text-amber-400 border border-amber-500/30 text-[10px] px-1.5 py-0.5 rounded-full">0</span>
+      </button>
+    </div>
+  </nav>
+
+  <main class="max-w-7xl mx-auto px-4 mt-6">
+
+    <!-- TAB 1: INDIVIDUAL HABIT TRACKER -->
+    <section id="sec-tracker" class="space-y-6">
+      <div class="bg-arcCard p-4 md:p-5 rounded-xl border border-gray-800 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div>
+          <h2 class="text-base md:text-lg font-bold flex items-center gap-2">
+            <span>User Profile:</span>
+            <span id="currentUserName" class="text-blue-400 font-extrabold">Guest</span>
+          </h2>
+          <p class="text-xs text-gray-400 mt-1">Tap any cell to record progress. Photo proof is mandatory to log a habit.</p>
+        </div>
+        <div class="bg-gray-900 border border-gray-800 px-4 py-2.5 rounded-xl flex items-center gap-4 w-full md:w-auto justify-between">
+          <div>
+            <span class="text-[10px] font-bold uppercase text-gray-500 block">Verified Score</span>
+            <span id="myVerifiedPoints" class="text-xl md:text-2xl font-black text-green-400">0</span>
+            <span class="text-xs text-gray-500">/ 52 pts</span>
+          </div>
+          <div class="h-8 w-px bg-gray-800"></div>
+          <div>
+            <span class="text-[10px] font-bold uppercase text-gray-500 block">Pending Claims</span>
+            <span id="myPendingPoints" class="text-xl md:text-2xl font-black text-amber-400">0</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tracker Table -->
+      <div class="overflow-x-auto bg-arcCard rounded-xl border border-gray-800 shadow-xl">
+        <table class="w-full text-left text-xs min-w-[640px]">
+          <thead class="bg-gray-900/80 border-b border-gray-800 text-gray-400 uppercase text-[10px] tracking-wider">
+            <tr>
+              <th class="p-3.5 pl-4">Habit & Standard</th>
+              <th class="p-3.5 text-center">Mon</th>
+              <th class="p-3.5 text-center">Tue</th>
+              <th class="p-3.5 text-center">Wed</th>
+              <th class="p-3.5 text-center">Thu</th>
+              <th class="p-3.5 text-center">Fri</th>
+              <th class="p-3.5 text-center">Sat</th>
+              <th class="p-3.5 text-center">Sun</th>
+            </tr>
+          </thead>
+          <tbody id="trackerTableBody" class="divide-y divide-gray-800/60 font-medium">
+            <!-- Dynamically injected rows -->
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- TAB 2: PUBLIC AUDIT FEED -->
+    <section id="sec-audit" class="hidden space-y-6">
+      <div class="flex justify-between items-center">
+        <div>
+          <h2 class="text-lg font-bold">Public Verification Audit Feed</h2>
+          <p class="text-xs text-gray-400">All photo proofs uploaded across the group.</p>
+        </div>
+      </div>
+      <div id="auditFeedGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <!-- Dynamically injected feed cards -->
+      </div>
+    </section>
+
+    <!-- TAB 3: REAL-TIME SCOREBOARD -->
+    <section id="sec-leaderboard" class="hidden space-y-6">
+      <div>
+        <h2 class="text-lg font-bold">Group Standings & Leaderboard</h2>
+        <p class="text-xs text-gray-400">Scores update automatically as claims are verified by the admin.</p>
+      </div>
+      <div class="bg-arcCard rounded-xl border border-gray-800 overflow-hidden shadow-xl">
+        <table class="w-full text-left text-xs md:text-sm">
+          <thead class="bg-gray-900/80 text-gray-400 uppercase text-[10px] border-b border-gray-800">
+            <tr>
+              <th class="p-4">Rank</th>
+              <th class="p-4">Participant</th>
+              <th class="p-4">Role</th>
+              <th class="p-4">Verified Points</th>
+              <th class="p-4">Pending Claims</th>
+            </tr>
+          </thead>
+          <tbody id="leaderboardBody" class="divide-y divide-gray-800">
+            <!-- Dynamically injected roster -->
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- TAB 4: ADMIN REVIEW QUEUE -->
+    <section id="sec-admin" class="hidden space-y-6">
+      <div class="border-l-4 border-amber-500 bg-amber-950/20 p-4 rounded-r-xl border border-amber-900/30">
+        <h2 class="text-base font-bold text-amber-400">Owner Verification Panel</h2>
+        <p class="text-xs text-amber-200/70 mt-0.5">Review uploaded proof photos. Approving a claim awards points directly on the live scoreboard.</p>
+      </div>
+      <div id="adminQueueGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <!-- Dynamically injected pending cards -->
+      </div>
+    </section>
+
+  </main>
+
+  <!-- MANDATORY PROOF UPLOAD MODAL -->
+  <div id="proofModal" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div class="bg-arcCard border border-gray-700 rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl">
+      <div class="flex justify-between items-start">
+        <div>
+          <h3 class="text-base font-bold text-blue-400">Upload Mandatory Proof</h3>
+          <p id="proofContextText" class="text-xs text-gray-400 mt-0.5">Physical Fitness — Mon</p>
+        </div>
+        <button onclick="abortProofModal()" class="text-gray-500 hover:text-white p-1">✕</button>
+      </div>
+
+      <div class="space-y-3">
+        <label class="block text-xs font-bold uppercase text-gray-400">Choose Image File / Camera</label>
+        <input type="file" id="proofFileInput" accept="image/*" capture="environment" class="w-full text-xs text-gray-400 file:mr-4 file:py-2.5 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-blue-600 file:text-white hover:file:bg-blue-500 cursor-pointer bg-gray-900 border border-gray-800 rounded-lg" />
+      </div>
+
+      <div id="imagePreviewContainer" class="hidden border border-gray-800 rounded-xl overflow-hidden max-h-52 bg-black flex items-center justify-center">
+        <img id="imagePreview" class="max-h-52 object-contain" />
+      </div>
+
+      <div class="flex justify-end gap-3 pt-2">
+        <button onclick="abortProofModal()" class="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-xs font-bold text-gray-300 rounded-lg transition">Cancel</button>
+        <button id="confirmUploadBtn" onclick="submitProofModal()" class="px-5 py-2 bg-blue-600 hover:bg-blue-500 text-xs font-bold text-white rounded-lg transition shadow-md shadow-blue-600/30 disabled:opacity-50">Upload & Submit</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- AUTHENTICATION MODAL -->
+  <div id="authModal" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div class="bg-arcCard border border-gray-700 rounded-2xl max-w-sm w-full p-6 space-y-5 shadow-2xl">
+      <div class="text-center space-y-1">
+        <h3 class="text-lg font-black text-gray-100">Sign In to Winter Arc</h3>
+        <p class="text-xs text-gray-400">Use your Google Account to access your personal profile.</p>
+      </div>
+
+      <button onclick="handleGoogleLogin()" class="w-full py-3 px-4 bg-white hover:bg-gray-100 text-gray-900 font-bold text-xs rounded-xl flex items-center justify-center gap-3 shadow-lg transition">
+        <svg class="w-4 h-4" viewBox="0 0 24 24">
+          <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+          <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+          <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
+          <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
+        </svg>
+        <span>Sign in with Google</span>
+      </button>
+
+      <div class="flex justify-center">
+        <button onclick="toggleAuthModal()" class="text-xs text-gray-500 hover:text-gray-300">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- FIREBASE MODULE SDK SCRIPTS -->
+  <script type="module">
+    // Import the functions you need from the SDKs you need
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+    import { getAuth, GoogleAuthProvider } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+
+    // Your web app's Firebase configuration
+    const firebaseConfig = {
+     apiKey: "AIzaSyAfMtnAUx_-Vzf-V7ZWbexg1ZMiFtKzZe4",
+    authDomain: "winter-arc-app-f4c14.firebaseapp.com",
+    projectId: "winter-arc-app-f4c14",
+    storageBucket: "winter-arc-app-f4c14.firebasestorage.app",
+    messagingSenderId: "4214070349",
+    appId: "1:4214070349:web:8c7b6259ec0d4f81151004",
+    measurementId: "G-33Y3E2PJ03"
+    };
+
+    // Initialize Firebase
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const provider = new GoogleAuthProvider();
+
+    // Leader & Roster Setup
+    const LEADER_EMAIL = "happykat716@gmail.com"; 
+
+    const ROSTER = [
+      "happykat716@gmail.com"
+    ];
+
+    const HABITS = [
+      { name: "Physical Fitness", desc: "45+ min workout" },
+      { name: "Sleep Hygiene", desc: "6+ hours sleep" },
+      { name: "Early Riser", desc: "Wake up < 5:30 AM" },
+      { name: "Intellectual Growth", desc: "10-15 pgs or 20m skill" },
+      { name: "Mindfulness", desc: "5-10m meditation/journal" },
+      { name: "Nutrition & Hydration", desc: "3L water, 0 junk/alcohol" },
+      { name: "Digital Detox", desc: "No screens 30m post/1h pre" },
+      { name: "Cardio Run", desc: "3km+ outdoor run" }
+    ];
+
+    const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+
+    let currentUser = null;
+    let pendingUploadContext = null;
+    let allClaimsCache = [];
+
+    window.addEventListener("DOMContentLoaded", () => {
+      renderBlankTrackerTable();
+      setupFirebaseListeners();
+    });
+
+    function renderBlankTrackerTable() {
+      const tbody = document.getElementById("trackerTableBody");
+      tbody.innerHTML = HABITS.map((h, hIdx) => `
+        <tr class="hover:bg-gray-900/40 transition">
+          <td class="p-3.5 pl-4">
+            <div class="font-bold text-gray-200">${h.name}</div>
+            <div class="text-[10px] text-gray-500 font-normal">${h.desc}</div>
+          </td>
+          ${DAYS.map((day) => `
+            <td class="p-3.5 text-center">
+              <button id="cell-${hIdx}-${day}" onclick="initiateHabitCheck(${hIdx}, '${day}')" class="w-8 h-8 rounded-lg border border-gray-800 bg-gray-900 text-gray-600 hover:border-blue-500/50 hover:text-blue-400 transition inline-flex items-center justify-center">
+                <span class="text-xs font-bold">+</span>
+              </button>
+            </td>
+          `).join('')}
+        </tr>
+      `).join('');
+    }
+
+    // AUTH LISTENERS
+    onAuthStateChanged(auth, (user) => {
+      currentUser = user;
+      const loginBtn = document.getElementById("loginBtn");
+      const logoutBtn = document.getElementById("logoutBtn");
+      const badge = document.getElementById("userBadge");
+      const adminBtn = document.getElementById("adminTabBtn");
+
+      if (user) {
+        document.getElementById("userStatus").innerText = user.email;
+        document.getElementById("userAvatar").innerText = (user.email[0] || "U").toUpperCase();
+        document.getElementById("currentUserName").innerText = user.displayName || user.email.split('@')[0];
+        loginBtn.classList.add("hidden");
+        logoutBtn.classList.remove("hidden");
+        badge.classList.remove("hidden");
+
+        if (user.email.toLowerCase() === LEADER_EMAIL.toLowerCase()) {
+          adminBtn.classList.remove("hidden");
+        } else {
+          adminBtn.classList.add("hidden");
+        }
+      } else {
+        loginBtn.classList.remove("hidden");
+        logoutBtn.classList.add("hidden");
+        badge.classList.add("hidden");
+        adminBtn.classList.add("hidden");
+        document.getElementById("currentUserName").innerText = "Guest";
+      }
+
+      updateUserGridUI();
+    });
+
+    // GOOGLE LOGIN HANDLER
+    window.handleGoogleLogin = async () => {
+      try {
+        await signInWithPopup(auth, provider);
+        toggleAuthModal();
+      } catch (err) {
+        alert("Google Login Error: " + err.message);
+      }
+    };
+
+    window.handleLogout = () => signOut(auth);
+
+    // INITIATE HABIT CHECK & PROOF MODAL
+    window.initiateHabitCheck = (hIdx, day) => {
+      if (!currentUser) {
+        alert("Please sign in first to record your habits.");
+        toggleAuthModal();
+        return;
+      }
+
+      const habit = HABITS[hIdx];
+      pendingUploadContext = { habitIdx: hIdx, habitName: habit.name, day };
+      
+      document.getElementById("proofContextText").innerText = `${habit.name} — ${day}`;
+      document.getElementById("proofFileInput").value = "";
+      document.getElementById("imagePreviewContainer").classList.add("hidden");
+      document.getElementById("proofModal").classList.remove("hidden");
+    };
+
+    window.abortProofModal = () => {
+      pendingUploadContext = null;
+      document.getElementById("proofModal").classList.add("hidden");
+    };
+
+    window.submitProofModal = async () => {
+      const fileInput = document.getElementById("proofFileInput");
+      if (!fileInput.files || fileInput.files.length === 0) {
+        alert("Photo proof is mandatory! The habit action has been canceled.");
+        return;
+      }
+
+      const uploadBtn = document.getElementById("confirmUploadBtn");
+      uploadBtn.disabled = true;
+      uploadBtn.innerText = "Uploading...";
+
+      const file = fileInput.files[0];
+      const timeStamp = Date.now();
+      const storageRef = ref(storage, `proofs/${currentUser.uid}_${timeStamp}_${file.name}`);
+
+      try {
+        const uploadTask = await uploadBytes(storageRef, file);
+        const downloadURL = await getDownloadURL(uploadTask.ref);
+
+        const claimId = `${currentUser.uid}_${pendingUploadContext.habitIdx}_${pendingUploadContext.day}`;
+        await setDoc(doc(db, "claims", claimId), {
+          claimId,
+          userId: currentUser.uid,
+          userEmail: currentUser.email.toLowerCase(),
+          userName: currentUser.displayName || currentUser.email.split('@')[0],
+          habitName: pendingUploadContext.habitName,
+          habitIdx: pendingUploadContext.habitIdx,
+          day: pendingUploadContext.day,
+          proofUrl: downloadURL,
+          status: "pending",
+          timestamp: timeStamp
+        });
+
+        abortProofModal();
+      } catch (err) {
+        alert("Upload failed: " + err.message);
+      } finally {
+        uploadBtn.disabled = false;
+        uploadBtn.innerText = "Upload & Submit";
+      }
+    };
+
+    // REAL-TIME FIRESTORE SNAPSHOT LISTENER
+    function setupFirebaseListeners() {
+      onSnapshot(collection(db, "claims"), (snapshot) => {
+        allClaimsCache = [];
+        snapshot.forEach(doc => allClaimsCache.push(doc.data()));
+
+        updateUserGridUI();
+        renderLeaderboard();
+        renderAuditFeed();
+        renderAdminQueue();
+      });
+    }
+
+    function updateUserGridUI() {
+      if (!currentUser) return;
+
+      const myEmail = currentUser.email.toLowerCase();
+      const myClaims = allClaimsCache.filter(c => c.userEmail === myEmail);
+
+      let approvedPts = 0;
+      let pendingPts = 0;
+
+      // Reset cell states
+      HABITS.forEach((_, hIdx) => {
+        DAYS.forEach(day => {
+          const btn = document.getElementById(`cell-${hIdx}-${day}`);
+          if (btn) {
+            btn.className = "w-8 h-8 rounded-lg border border-gray-800 bg-gray-900 text-gray-600 hover:border-blue-500/50 hover:text-blue-400 transition inline-flex items-center justify-center";
+            btn.innerHTML = `<span class="text-xs font-bold">+</span>`;
+          }
+        });
+      });
+
+      // Apply claims to grid
+      myClaims.forEach(c => {
+        const btn = document.getElementById(`cell-${c.habitIdx}-${c.day}`);
+        if (btn) {
+          if (c.status === "approved") {
+            approvedPts++;
+            btn.className = "w-8 h-8 rounded-lg border border-green-500/50 bg-green-500/20 text-green-400 font-bold transition inline-flex items-center justify-center shadow-sm shadow-green-500/20";
+            btn.innerHTML = `✓`;
+          } else if (c.status === "pending") {
+            pendingPts++;
+            btn.className = "w-8 h-8 rounded-lg border border-amber-500/50 bg-amber-500/20 text-amber-400 font-bold transition inline-flex items-center justify-center animate-pulse";
+            btn.innerHTML = `⏳`;
+          }
+        }
+      });
+
+      document.getElementById("myVerifiedPoints").innerText = approvedPts;
+      document.getElementById("myPendingPoints").innerText = pendingPts;
+    }
+
+    function renderLeaderboard() {
+      const leaderboardBody = document.getElementById("leaderboardBody");
+      
+      const ranked = ROSTER.map(r => {
+        const email = r.email.toLowerCase();
+        const approved = allClaimsCache.filter(c => c.userEmail === email && c.status === "approved").length;
+        const pending = allClaimsCache.filter(c => c.userEmail === email && c.status === "pending").length;
+        return { ...r, approved, pending };
+      }).sort((a, b) => b.approved - a.approved);
+
+      leaderboardBody.innerHTML = ranked.map((p, idx) => `
+        <tr class="hover:bg-gray-900/40 transition">
+          <td class="p-4 font-black ${idx === 0 ? 'text-amber-400' : 'text-gray-500'}">#${idx + 1}</td>
+          <td class="p-4 font-bold text-white">${p.name}</td>
+          <td class="p-4">
+            <span class="px-2 py-0.5 text-[10px] font-bold rounded-md ${p.role === 'Owner' ? 'bg-amber-900/40 text-amber-400 border border-amber-700/50' : 'bg-gray-800 text-gray-400'}">
+              ${p.role}
+            </span>
+          </td>
+          <td class="p-4 font-black text-green-400 text-base">${p.approved} pts</td>
+          <td class="p-4 font-bold text-amber-400">${p.pending} pending</td>
+        </tr>
+      `).join('');
+    }
+
+    function renderAuditFeed() {
+      const feed = document.getElementById("auditFeedGrid");
+      const approved = allClaimsCache.filter(c => c.status === "approved");
+
+      if (approved.length === 0) {
+        feed.innerHTML = `<p class="text-xs text-gray-500 italic col-span-full py-8 text-center bg-arcCard border border-gray-800 rounded-xl">No verified proofs published yet.</p>`;
+        return;
+      }
+
+      feed.innerHTML = approved.map(c => `
+        <div class="bg-arcCard border border-gray-800 rounded-xl overflow-hidden shadow-lg">
+          <img src="${c.proofUrl}" class="w-full h-48 object-cover bg-black" />
+          <div class="p-3.5 space-y-1">
+            <div class="flex justify-between items-center text-xs">
+              <span class="font-bold text-blue-400">${c.userName}</span>
+              <span class="text-green-400 text-[10px] font-bold bg-green-500/10 px-2 py-0.5 rounded border border-green-500/20">✔ Verified</span>
+            </div>
+            <p class="text-xs text-gray-300 font-medium">${c.habitName} (${c.day})</p>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function renderAdminQueue() {
+      const queue = allClaimsCache.filter(c => c.status === "pending");
+      document.getElementById("pendingCount").innerText = queue.length;
+
+      const adminGrid = document.getElementById("adminQueueGrid");
+
+      if (queue.length === 0) {
+        adminGrid.innerHTML = `<p class="text-xs text-gray-500 italic col-span-full py-8 text-center bg-arcCard border border-gray-800 rounded-xl">Review queue empty. No pending submissions.</p>`;
+        return;
+      }
+
+      adminGrid.innerHTML = queue.map(c => `
+        <div class="bg-arcCard border border-amber-900/40 rounded-xl p-4 space-y-3 shadow-xl">
+          <div class="flex justify-between items-center text-xs">
+            <span class="font-bold text-amber-400">${c.userName} (${c.userEmail})</span>
+            <span class="text-gray-500 text-[10px] font-mono">${c.day}</span>
+          </div>
+          <p class="text-xs text-gray-200 font-bold">${c.habitName}</p>
+          <img src="${c.proofUrl}" class="w-full h-44 object-cover rounded-lg border border-gray-800 bg-black" />
+          <div class="flex gap-2 pt-1">
+            <button onclick="reviewClaim('${c.claimId}', 'approved')" class="flex-1 py-2 bg-green-600 hover:bg-green-500 text-xs font-bold text-white rounded-lg transition shadow-md shadow-green-600/20">Approve</button>
+            <button onclick="reviewClaim('${c.claimId}', 'rejected')" class="flex-1 py-2 bg-red-600/80 hover:bg-red-600 text-xs font-bold text-white rounded-lg transition">Reject</button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    window.reviewClaim = async (claimId, newStatus) => {
+      try {
+        await updateDoc(doc(db, "claims", claimId), { status: newStatus });
+      } catch (err) {
+        alert("Error updating status: " + err.message);
+      }
+    };
+
+    // UI Tab Navigation
+    window.switchTab = (tabName) => {
+      ['tracker', 'audit', 'leaderboard', 'admin'].forEach(t => {
+        const sec = document.getElementById(`sec-${t}`);
+        const tabBtn = document.getElementById(`tab-${t}`);
+        if (sec) sec.classList.add('hidden');
+        if (tabBtn) {
+          tabBtn.classList.remove('border-blue-500', 'text-blue-500');
+          tabBtn.classList.add('border-transparent', 'text-gray-400');
+        }
+      });
+
+      document.getElementById(`sec-${tabName}`).classList.remove('hidden');
+      const activeTab = document.getElementById(`tab-${tabName}`);
+      if (activeTab) {
+        activeTab.classList.remove('border-transparent', 'text-gray-400');
+        activeTab.classList.add('border-blue-500', 'text-blue-500');
+      }
+    };
+
+    window.toggleAuthModal = () => document.getElementById("authModal").classList.toggle("hidden");
+
+    // File Preview Handler
+    document.getElementById("proofFileInput").addEventListener("change", (e) => {
+      if (e.target.files && e.target.files[0]) {
+        const reader = new FileReader();
+        reader.onload = (evt) => {
+          document.getElementById("imagePreview").src = evt.target.result;
+          document.getElementById("imagePreviewContainer").classList.remove("hidden");
+        };
+        reader.readAsDataURL(e.target.files[0]);
+      }
+    });
+  </script>
+</body>
+</html>
