@@ -92,7 +92,7 @@
           <div>
             <span class="text-[10px] font-bold uppercase text-gray-500 block">Verified Score</span>
             <span id="myVerifiedPoints" class="text-xl md:text-2xl font-black text-green-400">0</span>
-            <span class="text-xs text-gray-500">/ 52 pts</span>
+            <span class="text-xs text-gray-500">/ 35 pts</span>
           </div>
           <div class="h-8 w-px bg-gray-800"></div>
           <div>
@@ -219,13 +219,31 @@
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
     import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
     import { getFirestore, doc, setDoc, updateDoc, onSnapshot, collection } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-    import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-storage.js";
 
     // ----------------------------------------------------------------------------------
-    // 1. GLOBAL WINDOW BINDINGS (CRITICAL FIX)
-    // By defining these at the very top, they will exist even if Firebase init fails later.
+    // 1. CONFIGURATION & PLACEHOLDERS
     // ----------------------------------------------------------------------------------
-    
+
+    // Firebase Config
+    const firebaseConfig = {
+      apiKey: "AIzaSyAfMtnAUx_-Vzf-V7ZWbexg1ZMiFtKzZe4",
+      authDomain: "winter-arc-app-f4c14.firebaseapp.com",
+      projectId: "winter-arc-app-f4c14",
+      messagingSenderId: "4214070349",
+      appId: "1:4214070349:web:8c7b6259ec0d4f81151004"
+    };
+
+    // Cloudinary Config (REPLACE WITH YOUR CLOUDINARY DETAILS)
+    const CLOUDINARY_CLOUD_NAME = "jbm8vizd"; 
+    const CLOUDINARY_UPLOAD_PRESET = "Apples"; 
+
+    // Admin Email address
+    const ADMIN_EMAIL = "happykat716@gmail.com";
+
+    // ----------------------------------------------------------------------------------
+    // 2. GLOBAL WINDOW BINDINGS
+    // ----------------------------------------------------------------------------------
+
     window.toggleAuthModal = () => {
       document.getElementById("authModal").classList.toggle("hidden");
     };
@@ -234,15 +252,16 @@
       ['tracker', 'audit', 'leaderboard', 'admin'].forEach(t => {
         const sec = document.getElementById(`sec-${t}`);
         const btn = document.getElementById(`tab-${t}`);
-        if(sec) sec.classList.add('hidden');
-        if(btn) {
+        if (sec) sec.classList.add('hidden');
+        if (btn) {
           btn.classList.remove('border-blue-500', 'text-blue-500');
           btn.classList.add('border-transparent', 'text-gray-400');
         }
       });
-      document.getElementById(`sec-${tabName}`).classList.remove('hidden');
+      const activeSec = document.getElementById(`sec-${tabName}`);
       const activeBtn = document.getElementById(`tab-${tabName}`);
-      if(activeBtn) {
+      if (activeSec) activeSec.classList.remove('hidden');
+      if (activeBtn) {
         activeBtn.classList.remove('border-transparent', 'text-gray-400');
         activeBtn.classList.add('border-blue-500', 'text-blue-500');
       }
@@ -267,6 +286,7 @@
       document.getElementById("proofModal").classList.add("hidden");
       document.getElementById("proofFileInput").value = "";
       document.getElementById("imagePreviewContainer").classList.add("hidden");
+      document.getElementById("imagePreview").src = "";
     };
 
     window.initiateHabitCheck = (hIdx, day) => {
@@ -276,11 +296,11 @@
         return;
       }
 
-      // Bug Fix: Prevent re-uploading if already verified or pending
+      // Check existing claims to prevent re-upload
       const existingClaim = allClaimsCache.find(c => c.habitIdx === hIdx && c.day === day && c.userId === currentUser.uid);
       if (existingClaim) {
         if (existingClaim.status === "approved") {
-          alert("You have already verified this habit for " + day + "!");
+          alert(`You have already verified this habit for ${day}!`);
           return;
         } else if (existingClaim.status === "pending") {
           alert("Your proof for this habit is currently pending admin review. Please wait.");
@@ -296,32 +316,54 @@
     };
 
     window.submitProofModal = async () => {
+      // Placeholder validation check
+      if (CLOUDINARY_CLOUD_NAME === "YOUR_CLOUDINARY_CLOUD_NAME" || CLOUDINARY_UPLOAD_PRESET === "YOUR_CLOUDINARY_UNSIGNED_PRESET") {
+        alert("Please set your CLOUDINARY_CLOUD_NAME and CLOUDINARY_UPLOAD_PRESET in the code before uploading!");
+        return;
+      }
+
       const fileInput = document.getElementById("proofFileInput");
       if (!fileInput.files || fileInput.files.length === 0) {
-        alert("Photo proof is absolutely mandatory!");
+        alert("Photo proof is mandatory!");
         return;
       }
 
       const file = fileInput.files[0];
       if (!file.type.startsWith('image/')) {
-         alert("Only image files are allowed.");
-         return;
+        alert("Only image files are allowed.");
+        return;
       }
 
       const uploadBtn = document.getElementById("confirmUploadBtn");
       uploadBtn.disabled = true;
       const originalText = uploadBtn.innerHTML;
-      uploadBtn.innerHTML = "Uploading... ⏳";
+      uploadBtn.innerHTML = "Uploading to Cloudinary... ⏳";
 
       try {
         const timeStamp = Date.now();
-        // Remove spaces and special chars from filename to prevent storage issues
-        const safeName = file.name.replace(/[^a-zA-Z0-9.]/g, '_');
-        const storageRef = ref(storage, `proofs/${currentUser.uid}_${timeStamp}_${safeName}`);
 
-        const uploadTask = await uploadBytes(storageRef, file);
-        const downloadURL = await getDownloadURL(uploadTask.ref);
+        // Prepare Cloudinary FormData
+        const formData = new FormData();
+        formData.append("file", file);
+        formData.append("upload_preset", CLOUDINARY_UPLOAD_PRESET);
+        formData.append("folder", "winter_arc_proofs");
 
+        // Upload to Cloudinary Unsigned API
+        const cloudinaryUrl = `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`;
+        const res = await fetch(cloudinaryUrl, {
+          method: "POST",
+          body: formData
+        });
+
+        if (!res.ok) {
+          const errData = await res.json();
+          throw new Error(errData.error?.message || "Cloudinary upload failed");
+        }
+
+        const cloudData = await res.json();
+        const downloadURL = cloudData.secure_url;
+
+        // Save metadata & Cloudinary URL to Firestore
         const claimId = `${currentUser.uid}_${pendingUploadContext.habitIdx}_${pendingUploadContext.day}`;
         await setDoc(doc(db, "claims", claimId), {
           claimId,
@@ -332,6 +374,7 @@
           habitIdx: pendingUploadContext.habitIdx,
           day: pendingUploadContext.day,
           proofUrl: downloadURL,
+          cloudinaryPublicId: cloudData.public_id || "",
           status: "pending",
           timestamp: timeStamp
         });
@@ -356,30 +399,18 @@
     };
 
     // ----------------------------------------------------------------------------------
-    // 2. CONFIGURATION & STATE
+    // 3. INITIALIZE FIREBASE & STATE
     // ----------------------------------------------------------------------------------
 
-    const firebaseConfig = {
-      apiKey: "AIzaSyAfMtnAUx_-Vzf-V7ZWbexg1ZMiFtKzZe4",
-      authDomain: "winter-arc-app-f4c14.firebaseapp.com",
-      projectId: "winter-arc-app-f4c14",
-      storageBucket: "winter-arc-app-f4c14.firebasestorage.app",
-      messagingSenderId: "4214070349",
-      appId: "1:4214070349:web:8c7b6259ec0d4f81151004"
-    };
-
-    // Initialize Firebase Services (Wrapped in try/catch to log setup errors)
-    let app, auth, db, storage;
+    let app, auth, db;
     try {
       app = initializeApp(firebaseConfig);
       auth = getAuth(app);
       db = getFirestore(app);
-      storage = getStorage(app);
     } catch(err) {
-      console.error("Firebase Initialization Error. Check your Config:", err);
+      console.error("Firebase Initialization Error:", err);
     }
 
-    const LEADER_EMAIL = "happykat716@gmail.com";
     const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
     const HABITS = [
       { name: "Wake up by 6:00 AM", desc: "Photo of clock/watch" },
@@ -394,12 +425,12 @@
     let pendingUploadContext = null;
 
     // ----------------------------------------------------------------------------------
-    // 3. CORE UI RENDERING FUNCTIONS
+    // 4. UI RENDERING FUNCTIONS
     // ----------------------------------------------------------------------------------
 
     function renderBlankTrackerTable() {
       const tbody = document.getElementById("trackerTableBody");
-      if(!tbody) return;
+      if (!tbody) return;
       tbody.innerHTML = HABITS.map((h, hIdx) => `
         <tr class="hover:bg-gray-900/30 transition">
           <td class="p-3.5 pl-4 border-r border-gray-800/50">
@@ -425,7 +456,7 @@
       let approvedPts = 0;
       let pendingPts = 0;
 
-      // Reset all cells to default "+"
+      // Reset cells
       HABITS.forEach((_, hIdx) => {
         DAYS.forEach(day => {
           const btn = document.getElementById(`cell-${hIdx}-${day}`);
@@ -436,7 +467,7 @@
         });
       });
 
-      // Apply claim states
+      // Apply claim status indicators
       myClaims.forEach(c => {
         const btn = document.getElementById(`cell-${c.habitIdx}-${c.day}`);
         if (btn) {
@@ -461,13 +492,13 @@
 
     function renderLeaderboard() {
       const leaderboardBody = document.getElementById("leaderboardBody");
-      if(!leaderboardBody) return;
+      if (!leaderboardBody) return;
       
       const usersMap = {};
       
-      // Ensure owner always exists
-      usersMap[LEADER_EMAIL.toLowerCase()] = {
-        name: "Owner", role: "Owner", approved: 0, pending: 0
+      // Ensure owner/admin entry
+      usersMap[ADMIN_EMAIL.toLowerCase()] = {
+        name: "Admin", role: "Owner", approved: 0, pending: 0
       };
 
       allClaimsCache.forEach(c => {
@@ -485,7 +516,6 @@
         if (c.status === "pending") usersMap[email].pending++;
       });
 
-      // Sort by approved points descending
       const ranked = Object.values(usersMap).sort((a, b) => b.approved - a.approved);
 
       leaderboardBody.innerHTML = ranked.map((p, idx) => `
@@ -508,7 +538,7 @@
 
     function renderAuditFeed() {
       const grid = document.getElementById("auditFeedGrid");
-      if(!grid) return;
+      if (!grid) return;
       
       const approvedClaims = allClaimsCache.filter(c => c.status === "approved").sort((a, b) => b.timestamp - a.timestamp);
 
@@ -535,7 +565,7 @@
     function renderAdminQueue() {
       const grid = document.getElementById("adminQueueGrid");
       const pendingCount = document.getElementById("pendingCount");
-      if(!grid || !pendingCount) return;
+      if (!grid || !pendingCount) return;
 
       const pendingClaims = allClaimsCache.filter(c => c.status === "pending").sort((a, b) => a.timestamp - b.timestamp);
       pendingCount.innerText = pendingClaims.length;
@@ -566,11 +596,11 @@
     }
 
     // ----------------------------------------------------------------------------------
-    // 4. FIREBASE LISTENERS & INITIALIZATION TRIGGER
+    // 5. LISTENERS & INIT
     // ----------------------------------------------------------------------------------
 
     function setupFirebaseListeners() {
-      if(!db) return; // Fail safe if config is missing
+      if (!db) return;
       try {
         const claimsRef = collection(db, "claims");
         onSnapshot(claimsRef, (snapshot) => {
@@ -584,12 +614,12 @@
         }, (err) => {
           console.error("Firestore Snapshot Error:", err);
         });
-      } catch(err) {
+      } catch (err) {
         console.error("Failed to setup snapshot:", err);
       }
     }
 
-    if(auth) {
+    if (auth) {
       onAuthStateChanged(auth, (user) => {
         currentUser = user;
         const loginBtn = document.getElementById("loginBtn");
@@ -602,33 +632,30 @@
           document.getElementById("userAvatar").innerText = (user.email[0] || "U").toUpperCase();
           document.getElementById("currentUserName").innerText = user.displayName || user.email.split('@')[0];
           
-          if(loginBtn) loginBtn.classList.add("hidden");
-          if(logoutBtn) logoutBtn.classList.remove("hidden");
-          if(badge) badge.classList.remove("hidden");
+          if (loginBtn) loginBtn.classList.add("hidden");
+          if (logoutBtn) logoutBtn.classList.remove("hidden");
+          if (badge) badge.classList.remove("hidden");
 
-          if (user.email.toLowerCase() === LEADER_EMAIL.toLowerCase()) {
-            if(adminBtn) adminBtn.classList.remove("hidden");
+          if (user.email.toLowerCase() === ADMIN_EMAIL.toLowerCase()) {
+            if (adminBtn) adminBtn.classList.remove("hidden");
           } else {
-            if(adminBtn) adminBtn.classList.add("hidden");
-            // If they happen to be on the admin tab when logging out of admin, kick them out
+            if (adminBtn) adminBtn.classList.add("hidden");
             window.switchTab('tracker'); 
           }
         } else {
-          if(loginBtn) loginBtn.classList.remove("hidden");
-          if(logoutBtn) logoutBtn.classList.add("hidden");
-          if(badge) badge.classList.add("hidden");
-          if(adminBtn) adminBtn.classList.add("hidden");
+          if (loginBtn) loginBtn.classList.remove("hidden");
+          if (logoutBtn) logoutBtn.classList.add("hidden");
+          if (badge) badge.classList.add("hidden");
+          if (adminBtn) adminBtn.classList.add("hidden");
           document.getElementById("currentUserName").innerText = "Guest";
         }
         updateUserGridUI();
       });
     }
 
-    // ----------------------------------------------------------------------------------
-    // 5. IMAGE PREVIEW LISTENER
-    // ----------------------------------------------------------------------------------
+    // Image Preview Listener
     const fileInput = document.getElementById("proofFileInput");
-    if(fileInput) {
+    if (fileInput) {
       fileInput.addEventListener("change", (e) => {
         if (e.target.files && e.target.files[0]) {
           const reader = new FileReader();
@@ -641,7 +668,7 @@
       });
     }
 
-    // Initialize layout immediately
+    // Initial render
     renderBlankTrackerTable();
     setupFirebaseListeners();
 
